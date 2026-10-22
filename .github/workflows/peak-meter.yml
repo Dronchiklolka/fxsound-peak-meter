@@ -1,0 +1,46 @@
+name: Peak meter tests
+on:
+  push:
+    paths:
+      - 'dsp/**'
+      - 'audiopassthru/**'
+      - 'tests/**'
+      - 'tools/Build-ClipMeter.ps1'
+      - 'tools/Package-ClipMeter.ps1'
+      - '.github/workflows/peak-meter.yml'
+  pull_request:
+    paths:
+      - 'dsp/**'
+      - 'audiopassthru/**'
+      - 'tests/**'
+      - 'tools/Build-ClipMeter.ps1'
+      - 'tools/Package-ClipMeter.ps1'
+      - '.github/workflows/peak-meter.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  public-build:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Exact JUCE source used by this release
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 2f980209cc4091a4490bb1bafc5d530f16834e58
+          path: third_party/JUCE
+          sparse-checkout: modules
+      - name: Build application and run detector plus offline DSP tests
+        shell: pwsh
+        run: ./tools/Build-ClipMeter.ps1 -JuceModulesPath "$pwd/third_party/JUCE/modules" -OutputDirectory "$pwd/build/public-app"
+      - name: Package clean executable and matching source with JUCE
+        shell: pwsh
+        run: ./tools/Package-ClipMeter.ps1 -BinaryDirectory "$pwd/build/public-app" -JuceModulesPath "$pwd/third_party/JUCE/modules" -OutputDirectory "$pwd/build/packages"
+      - name: Upload public packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fxsound-peak-meter-0.1.0
+          path: build/packages/*.zip
+          compression-level: 0
